@@ -1,5 +1,9 @@
 # 🐢 烏龜飼養小助手 — NVIDIA NIM RAG 實力示範
 
+**繁體中文** | [English](README.en.md)
+
+[![CI](https://github.com/richie7p/turtle-care-assistant-demo/actions/workflows/ci.yml/badge.svg)](https://github.com/richie7p/turtle-care-assistant-demo/actions/workflows/ci.yml)
+
 這是 `NVIDIA NIM RAG Platform` 的完整領域示範版，用烏龜飼養呈現同一套架構如何結合 Profile、私有圖片、Vision、RAG、醫療安全規則與管理後台。
 
 若要改造成學校、公司或其他主題的助理，請從不含領域資料的 [NVIDIA NIM RAG Platform 系統架構版](https://github.com/richie7p/nvidia-nim-rag-platform) 開始。
@@ -65,6 +69,8 @@ KNOWLEDGE_DIR=./knowledge
 
 核心版會把 `ENABLE_TURTLE_MODULE` 設為 `false`，並換成通用品牌、通用 System Prompt 與空白知識庫。聊天、RAG、引用、帳號、後台、Usage、權限與 NVIDIA Provider 都是同一套共用程式。
 
+替換 Markdown、品牌與提示詞不需修改程式；但若要把「烏龜 Profile」改成「學生 Profile」或其他結構化領域資料，仍需調整資料表、API 與前端表單。`ModelProvider` 已定義擴充介面，但目前可直接使用的實作只有 NVIDIA Hosted NIM，尚未內建 vLLM。
+
 ## 更換烏龜知識
 
 直接新增、修改或刪除 `knowledge/**/*.md`，然後執行：
@@ -76,6 +82,15 @@ Set-Location backend
 ```
 
 純 Markdown 可以直接索引；YAML frontmatter 用來補充來源、標籤與審閱日期。
+
+## NVIDIA 模型與中文 Vision 注意事項
+
+- Chat：`nvidia/nemotron-3-nano-30b-a3b`
+- Fallback：`mistralai/mistral-nemotron`
+- Vision：`nvidia/nemotron-nano-12b-v2-vl`
+- Embedding：`nvidia/llama-nemotron-embed-1b-v2`
+
+NVIDIA 目前的 [Vision Model Card](https://build.nvidia.com/nvidia/nemotron-nano-12b-v2-vl/modelcard) 將預設 Vision 模型的語言支援標示為 English only。因此正式展示繁體中文圖片分析前，必須使用私人有效 Key 做真實中文 Smoke Test，並視結果更換為明確支援目標語言的 Vision 模型。
 
 ## 測試
 
