@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -27,7 +27,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Validate POSIX launcher
-        if: runner.os == 'Linux'
+        if: runner.os != 'Windows'
         run: bash -n scripts/start.sh
       - name: Install backend dependencies
         run: python -m pip install -r backend/requirements-dev.txt

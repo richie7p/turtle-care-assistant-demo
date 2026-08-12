@@ -180,7 +180,7 @@ npm.cmd run build
 npm.cmd run test:e2e
 ```
 
-測試使用 Fake Provider，不會讀取真實 NVIDIA Key。GitHub Actions 會在 `windows-latest` 與 `ubuntu-latest` 執行相同測試；macOS/Linux 可把 Python 路徑換成 `../.venv/bin/python`，把 `npm.cmd` 換成 `npm`。
+測試使用 Fake Provider，不會讀取真實 NVIDIA Key。GitHub Actions 會在 `windows-latest`、`ubuntu-latest` 與 `macos-latest` 執行相同測試；macOS/Linux 可把 Python 路徑換成 `../.venv/bin/python`，把 `npm.cmd` 換成 `npm`。
 
 ## 常見問題
 

@@ -178,7 +178,7 @@ npm.cmd run build
 npm.cmd run test:e2e
 ```
 
-Automated tests use an internal fake provider. They validate application behavior without exposing a real API key. GitHub Actions runs the suite on both `windows-latest` and `ubuntu-latest`. On macOS or Linux, replace the Windows Python path with `../.venv/bin/python` and `npm.cmd` with `npm`. Live NVIDIA NIM connectivity must be smoke-tested separately with a private key.
+Automated tests use an internal fake provider. They validate application behavior without exposing a real API key. GitHub Actions runs the suite on `windows-latest`, `ubuntu-latest`, and `macos-latest`. On macOS or Linux, replace the Windows Python path with `../.venv/bin/python` and `npm.cmd` with `npm`. Live NVIDIA NIM connectivity must be smoke-tested separately with a private key.
 
 ## Troubleshooting
 
