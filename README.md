@@ -20,7 +20,7 @@
 
 ## 快速開始
 
-需求：Python 3.11、Node.js 20 以上。
+需求：Python 3.11、Node.js 22 以上。
 
 ```powershell
 python -m venv .venv
