@@ -30,7 +30,7 @@
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r backend\requirements-dev.txt
 Set-Location frontend
-npm.cmd install
+npm.cmd ci
 Set-Location ..
 Copy-Item .env.example .env
 ```

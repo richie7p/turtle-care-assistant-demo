@@ -65,7 +65,8 @@ Open <http://127.0.0.1:8000>. No default login is provided.
 python3 -m venv .venv
 .venv/bin/python -m pip install -r backend/requirements-dev.txt
 cd frontend
-npm install
+npm ci
+npm run build
 cd ..
 cp .env.example .env
 ```
