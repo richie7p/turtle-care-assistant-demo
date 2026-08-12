@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,34 +16,34 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "NVIDIA NIM RAG Platform"
-    app_short_name: str = "NIM RAG"
-    app_icon: str = "AI"
-    app_tagline: str = "可自行替換知識庫的 AI 助理平台"
-    app_description: str = "適合學校、公司與組織自行部署的 NVIDIA NIM RAG 系統。"
-    assistant_name: str = "AI 知識助理"
-    knowledge_label: str = "組織知識庫"
-    profile_label: str = "Profile"
-    welcome_title: str = "今天想查詢什麼？"
-    welcome_description: str = "我會先檢索管理員提供的知識庫，再整理成附有來源的回答。"
-    app_disclaimer: str = "AI 可能會出錯，重要決策請由資料負責人覆核。"
-    enable_turtle_module: bool = False
+    app_name: str = "烏龜飼養小助手"
+    app_short_name: str = "烏龜飼養"
+    app_icon: str = "龜"
+    app_tagline: str = "懂你的龜，也懂你的飼養日常"
+    app_description: str = "結合龜龜 Profile、自訂飼養知識庫與 NVIDIA NIM 的完整實力示範。"
+    assistant_name: str = "烏龜飼養小助手"
+    knowledge_label: str = "飼養知識"
+    profile_label: str = "我的龜龜"
+    welcome_title: str = "嗨！我是你的烏龜飼養小助手"
+    welcome_description: str = "選擇一隻龜龜後提問，我會結合牠的資料與可信飼養知識回答。"
+    app_disclaimer: str = "AI 可能會出錯；重大健康問題請諮詢合格爬蟲類獸醫。"
+    enable_turtle_module: bool = True
     knowledge_dir: str = "./knowledge"
-    system_prompt_file: str = "./prompts/generic-assistant.md"
+    system_prompt_file: str = "./prompts/assistant.md"
     system_prompt: str | None = None
     app_env: str = "development"
     app_origin: str = "http://localhost:5173"
     session_secret: str = "development-only-change-this-secret-now"
     session_days: int = 7
-    database_url: str = "sqlite:///./data/nim_rag_platform.db"
+    database_url: str = "sqlite:///./data/turtle_assistant.db"
     upload_dir: str = "./uploads"
 
     ai_provider: str = "nvidia-nim"
     ai_api_key: str = ""
     ai_base_url: str = "https://integrate.api.nvidia.com/v1"
-    ai_model: str = "nvidia/nemotron-3-nano-30b-a3b"
+    ai_model: str = "mistralai/ministral-14b-instruct-2512"
     ai_fallback_model: str | None = "mistralai/mistral-nemotron"
-    ai_vision_model: str = "nvidia/nemotron-nano-12b-v2-vl"
+    ai_vision_model: str = "mistralai/ministral-14b-instruct-2512"
     ai_embedding_model: str = "nvidia/llama-nemotron-embed-1b-v2"
     ai_timeout_seconds: int = 45
     ai_max_output_tokens: int = 1200
@@ -92,6 +92,18 @@ class Settings(BaseSettings):
         if not path.is_absolute():
             path = BACKEND_DIR / path
         return str(path.resolve())
+
+    @model_validator(mode="after")
+    def validate_production_security(self):
+        if not self.is_production:
+            return self
+        secret = self.session_secret.strip()
+        placeholder_markers = ("development-only", "replace", "請替換", "請換成")
+        if len(secret) < 32 or any(marker in secret.casefold() for marker in placeholder_markers):
+            raise ValueError("Production requires a unique SESSION_SECRET of at least 32 characters.")
+        if not self.app_origin.startswith("https://") or "example.org" in self.app_origin:
+            raise ValueError("Production APP_ORIGIN must be the real public HTTPS origin.")
+        return self
 
     @property
     def knowledge_path(self) -> Path:

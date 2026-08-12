@@ -22,11 +22,21 @@
 - 使用者／對話／龜龜／附件完整權限隔離
 - 後台營運總覽、AI 紀錄、知識同步、NIM 健康檢查與管理稽核
 
-## 快速開始
+## 安裝需求
 
-需求：Python 3.11、Node.js 22 以上。
+- Git
+- Python 3.11（請確認 `python --version`）
+- Node.js 22 以上（建議使用目前的 LTS 版）
+- 可連線至 `https://integrate.api.nvidia.com`
+- 自己的 NVIDIA NIM API Key；前往 [NVIDIA Build](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512) 登入並選擇 **Generate API Key**
+
+Hosted NIM 由 NVIDIA 雲端執行，安裝本專案不需要 NVIDIA GPU 或本機模型。NVIDIA 免費端點可能有額度與流量限制，實際條款以 NVIDIA 頁面為準。
+
+## Windows 快速開始
 
 ```powershell
+git clone https://github.com/richie7p/turtle-care-assistant-demo.git
+Set-Location turtle-care-assistant-demo
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r backend\requirements-dev.txt
 Set-Location frontend
@@ -35,7 +45,13 @@ Set-Location ..
 Copy-Item .env.example .env
 ```
 
-開啟 `.env`：
+先產生 Session Secret：
+
+```powershell
+.\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+把輸出結果與自己的 NVIDIA Key 填入 `.env`：
 
 ```env
 SESSION_SECRET=請換成至少32字元的隨機字串
@@ -55,7 +71,46 @@ Set-Location ..
 .\start.cmd
 ```
 
-開啟 <http://127.0.0.1:8000>。本專案不提供預設帳密。
+`start.cmd` 會自動建置前端、執行 migration 並啟動 FastAPI，不必直接執行可能被 Execution Policy 阻擋的 `.ps1`。開啟 <http://127.0.0.1:8000>；本專案不提供預設帳密。
+
+## macOS／Linux 快速開始
+
+```bash
+git clone https://github.com/richie7p/turtle-care-assistant-demo.git
+cd turtle-care-assistant-demo
+python3 -m venv .venv
+.venv/bin/python -m pip install -r backend/requirements-dev.txt
+cd frontend
+npm ci
+cd ..
+cp .env.example .env
+.venv/bin/python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+把最後一行輸出的 Secret 與自己的 NVIDIA Key 填入 `.env`，再執行：
+
+```bash
+cd backend
+../.venv/bin/python -m alembic upgrade head
+../.venv/bin/python -m app.cli init-db
+../.venv/bin/python -m app.cli create-admin
+../.venv/bin/python -m app.cli validate-knowledge
+../.venv/bin/python -m app.cli sync-knowledge
+cd ..
+bash scripts/start.sh
+```
+
+開啟 <http://127.0.0.1:8000>。若要讓腳本可直接執行，可另外執行 `chmod +x scripts/start.sh`。
+
+## 第一次使用與驗收
+
+1. 瀏覽 <http://127.0.0.1:8000/api/health>，確認 `status` 是 `ok`、`configured` 是 `true`。
+2. 使用剛建立的管理員登入，在管理後台執行 NVIDIA Provider 檢查，確認 Chat、Vision 與 Embedding 模型可用。
+3. 註冊一個一般測試帳號、新增烏龜 Profile，建立對話並選擇該烏龜。
+4. 詢問「UVB 燈有什麼作用？」之類的示範文件問題，確認繁中串流回答與引用卡片。
+5. 上傳不含私人資訊的測試圖片，確認圖片分析完成；醫療描述不得只依照片確診。
+
+`/api/health` 只會回報是否已填入 Key，不會驗證 Key 是否有效；真實連線與模型品質以 Provider 檢查和上述 Smoke Test 為準。
 
 ## 如何證明它不只適用烏龜
 
@@ -87,12 +142,32 @@ Set-Location backend
 
 ## NVIDIA 模型與中文 Vision 注意事項
 
-- Chat：`nvidia/nemotron-3-nano-30b-a3b`
-- Fallback：`mistralai/mistral-nemotron`
-- Vision：`nvidia/nemotron-nano-12b-v2-vl`
-- Embedding：`nvidia/llama-nemotron-embed-1b-v2`
+- Chat：[`mistralai/ministral-14b-instruct-2512`](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512)
+- Fallback：[`mistralai/mistral-nemotron`](https://build.nvidia.com/mistralai/mistral-nemotron)
+- Vision：[`mistralai/ministral-14b-instruct-2512`](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512)
+- Embedding：[`nvidia/llama-nemotron-embed-1b-v2`](https://build.nvidia.com/nvidia/llama-nemotron-embed-1b-v2/modelcard)
 
-NVIDIA 目前的 [Vision Model Card](https://build.nvidia.com/nvidia/nemotron-nano-12b-v2-vl/modelcard) 將預設 Vision 模型的語言支援標示為 English only。因此正式展示繁體中文圖片分析前，必須使用私人有效 Key 做真實中文 Smoke Test，並視結果更換為明確支援目標語言的 Vision 模型。
+預設 Ministral 同時支援文字與圖片；NVIDIA 的模型資料列出中文為支援語言，Embedding 模型也列出中文與跨語言檢索能力。Hosted 模型供應狀態可能改變，所有型號都能在 `.env` 更換。正式展示前仍必須使用自己的私人 Key 與實際烏龜照片完成文字、圖片及 Embedding Smoke Test。
+
+## 在伺服器部署
+
+本機快速開始預設只監聽 `127.0.0.1`。公開部署至少要在 `.env` 設定：
+
+```env
+APP_ENV=production
+APP_ORIGIN=https://assistant.example.org
+SESSION_SECRET=獨立產生的長隨機字串
+```
+
+在 Caddy、Nginx 或雲端 Load Balancer 後方以單一程序啟動：
+
+```bash
+APP_HOST=0.0.0.0 APP_PORT=8000 bash scripts/start.sh
+```
+
+Windows Server 可改用：`$env:APP_HOST='0.0.0.0'; $env:APP_PORT='8000'; .\start.cmd`。
+
+反向代理必須提供 HTTPS，`APP_ORIGIN` 必須與瀏覽器實際使用的 Origin 完全一致。請持久化並備份 `backend/data/` 與 `backend/uploads/`。SQLite 適合單機展示；多實例部署應先完成 PostgreSQL 驅動、migration、共享限流與 staging 整合測試。更完整的部署邊界請見[系統架構版 README](https://github.com/richie7p/nvidia-nim-rag-platform#在伺服器部署)。
 
 ## 測試
 
@@ -104,6 +179,18 @@ npm.cmd test
 npm.cmd run build
 npm.cmd run test:e2e
 ```
+
+測試使用 Fake Provider，不會讀取真實 NVIDIA Key。GitHub Actions 會在 `windows-latest` 與 `ubuntu-latest` 執行相同測試；macOS/Linux 可把 Python 路徑換成 `../.venv/bin/python`，把 `npm.cmd` 換成 `npm`。
+
+## 常見問題
+
+- `start.ps1 無法載入`：請在專案根目錄執行 `.\start.cmd`，它只為這次啟動套用 Execution Policy Bypass。
+- `.venv was not found`：確認目前位於 clone 下來的 repository 根目錄，再重做 venv 與 pip 安裝。
+- 首頁顯示「frontend not built」：在 `frontend/` 執行 `npm ci`、`npm run build`，或重新執行啟動腳本。
+- AI 顯示未設定：確認根目錄 `.env` 內有 `AI_API_KEY`，修改後重新啟動。
+- 知識庫沒有引用：先以管理員執行 `validate-knowledge` 與 `sync-knowledge`；後者會使用 NVIDIA Embedding 額度。
+- 模型停止服務或 404：到 NVIDIA Build 選擇目前可用模型並更新 `.env`；若更換 Embedding 模型，必須重新同步知識庫。
+- Port 8000 已被使用：先停止舊服務，或用 `$env:APP_PORT='8010'; .\start.cmd` 改用其他 Port。
 
 ## 安全提醒
 

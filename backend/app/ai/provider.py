@@ -88,11 +88,12 @@ class NvidiaNimProvider(ModelProvider):
         model: str | None = None,
     ) -> dict[str, Any]:
         resolved_model = model or self._model_for_messages(messages)
+        is_ministral = resolved_model.startswith("mistralai/ministral-")
         payload: dict[str, Any] = {
             "model": resolved_model,
             "messages": messages,
-            "temperature": 0.25,
-            "top_p": 0.85,
+            "temperature": 0.15 if is_ministral else 0.25,
+            "top_p": 1.0 if is_ministral else 0.85,
             "max_tokens": max_tokens or self.settings.ai_max_output_tokens,
             "stream": stream,
         }
