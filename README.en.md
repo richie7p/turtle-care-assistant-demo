@@ -13,8 +13,8 @@ Every installation must use its own NVIDIA NIM API key. This repository contains
 - Multiple turtle profiles with species, aquatic or terrestrial type, size, habitat, UVB, heating, and diet fields
 - A turtle can be attached to a conversation and its profile is injected into the AI context
 - JPEG, PNG, and WebP analysis with content validation, EXIF removal, dimension limits, and upload-count limits
-- Twelve Traditional Chinese reference documents covering aquatic turtles, tortoises, UVB, water quality, temperature, humidity, filtration, basking, feeding, calcium, enclosure safety, and warning signs
-- Source-linked RAG answers; the assistant must not fabricate citations when retrieval finds no qualified result
+- Twelve Traditional Chinese demonstration documents covering aquatic turtles, tortoises, UVB, water quality, temperature, humidity, filtration, basking, feeding, calcium, enclosure safety, and warning signs
+- Document-level RAG citations; the assistant must not fabricate a source when retrieval finds no qualified result
 - Image responses are limited to observable findings and must not diagnose a condition from a photo alone
 - Natural escalation to a reptile veterinarian for bleeding, serious injury, breathing abnormalities, prolonged refusal to eat, or other high-risk signs
 - Per-user isolation for profiles, conversations, messages, and attachments
@@ -109,6 +109,8 @@ Set-Location backend
 ```
 
 Plain Markdown is supported. Optional YAML frontmatter supplies source metadata, tags, and a review date. The generic platform repository contains a more detailed frontmatter example.
+
+The 12 bundled documents demonstrate chunking, embeddings, retrieval, and citations. They are project demonstration content and have not been reviewed by a veterinarian. Before a real deployment, have a qualified content owner review them or replace them with your organization's properly licensed material.
 
 ## Default NVIDIA models
 
