@@ -8,7 +8,13 @@ const baseURL = `http://127.0.0.1:${e2ePort}`;
 
 export default defineConfig({
   testDir: "./e2e",
-  timeout: 30_000,
+  timeout: 60_000,
+  expect: {
+    timeout: 15_000,
+  },
+  // Registration uses Argon2. Serial CI execution avoids CPU contention on
+  // slower hosted Windows runners while still testing both viewports.
+  workers: process.env.CI ? 1 : undefined,
   use: {
     baseURL,
     trace: "retain-on-failure",

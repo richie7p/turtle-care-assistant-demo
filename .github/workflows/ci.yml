@@ -6,24 +6,40 @@ on:
 
 jobs:
   test:
-    runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: backend/requirements-dev.txt
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Validate POSIX launcher
+        if: runner.os != 'Windows'
+        run: bash -n scripts/start.sh
       - name: Install backend dependencies
         run: python -m pip install -r backend/requirements-dev.txt
       - name: Backend tests
         working-directory: backend
         run: python -m pytest -q
+      - name: Database migrations and knowledge validation
+        working-directory: backend
+        run: |
+          python -m alembic upgrade head
+          python -m app.cli init-db
+          python -m app.cli validate-knowledge
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
@@ -37,4 +53,5 @@ jobs:
         working-directory: frontend
         env:
           E2E_PYTHON: python
+          E2E_TURTLE_MODULE: "true"
         run: npm run test:e2e

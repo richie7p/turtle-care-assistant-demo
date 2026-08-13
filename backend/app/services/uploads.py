@@ -34,17 +34,21 @@ async def save_image_upload(
 
     try:
         image = Image.open(io.BytesIO(raw))
+        if image.width * image.height > 40_000_000:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="圖片解析度過高。",
+            )
         image.verify()
         image = Image.open(io.BytesIO(raw))
         image.load()
+    except HTTPException:
+        raise
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="無法辨識圖片內容。") from exc
 
     if image.format not in ALLOWED_FORMATS:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="僅支援 JPEG、PNG 與 WebP。")
-    if image.width * image.height > 40_000_000:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="圖片解析度過高。")
-
     image.thumbnail((2048, 2048), Image.Resampling.LANCZOS)
     media_type, extension = ALLOWED_FORMATS[image.format]
     if image.mode not in ("RGB", "RGBA"):
@@ -88,4 +92,3 @@ def delete_attachment_file(settings: Settings, attachment: Attachment) -> None:
     upload_root = Path(settings.upload_dir).resolve()
     if upload_root in path.parents and path.is_file():
         path.unlink(missing_ok=True)
-

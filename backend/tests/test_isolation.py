@@ -1,4 +1,7 @@
+from io import BytesIO
+
 from fastapi.testclient import TestClient
+from PIL import Image
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -12,6 +15,12 @@ def turtle_payload(name: str):
     return {"name": name, "species": "臺灣斑龜", "turtle_type": "aquatic", "has_uvb": True}
 
 
+def make_png() -> bytes:
+    output = BytesIO()
+    Image.new("RGB", (32, 32), "green").save(output, format="PNG")
+    return output.getvalue()
+
+
 def test_user_data_isolation(db_session):
     def override_db():
         yield db_session
@@ -21,13 +30,37 @@ def test_user_data_isolation(db_session):
         csrf_b = register(user_b, "b@example.com", "B")
         turtle_b = user_b.post("/api/v1/turtles", json=turtle_payload("B 的龜"), headers={"X-CSRF-Token": csrf_b}).json()
         conversation_b = user_b.post("/api/v1/conversations", json={"turtle_id": turtle_b["id"]}, headers={"X-CSRF-Token": csrf_b}).json()
+        attachment_b = user_b.post(
+            "/api/v1/attachments",
+            files={"file": ("private.png", make_png(), "image/png")},
+            headers={"X-CSRF-Token": csrf_b},
+        ).json()
 
         assert user_a.get(f"/api/v1/turtles/{turtle_b['id']}").status_code == 404
         assert user_a.patch(f"/api/v1/turtles/{turtle_b['id']}", json={"name": "偷改"}, headers={"X-CSRF-Token": csrf_a}).status_code == 404
+        assert user_a.delete(f"/api/v1/turtles/{turtle_b['id']}", headers={"X-CSRF-Token": csrf_a}).status_code == 404
         assert user_a.get(f"/api/v1/conversations/{conversation_b['id']}").status_code == 404
         assert user_a.patch(f"/api/v1/conversations/{conversation_b['id']}", json={"title": "偷改"}, headers={"X-CSRF-Token": csrf_a}).status_code == 404
+        assert user_a.delete(f"/api/v1/conversations/{conversation_b['id']}", headers={"X-CSRF-Token": csrf_a}).status_code == 404
+        assert user_a.post(
+            "/api/v1/conversations",
+            json={"turtle_id": turtle_b["id"]},
+            headers={"X-CSRF-Token": csrf_a},
+        ).status_code == 404
+        assert user_a.get(f"/api/v1/attachments/{attachment_b['id']}").status_code == 404
+        assert user_a.delete(
+            f"/api/v1/attachments/{attachment_b['id']}", headers={"X-CSRF-Token": csrf_a}
+        ).status_code == 404
+        assert user_a.post(
+            f"/api/v1/attachments?conversation_id={conversation_b['id']}",
+            files={"file": ("intrusion.png", make_png(), "image/png")},
+            headers={"X-CSRF-Token": csrf_a},
+        ).status_code == 404
         assert user_a.get("/api/v1/turtles").json() == []
         assert user_a.get("/api/v1/conversations").json() == []
+        assert user_b.get(f"/api/v1/turtles/{turtle_b['id']}").status_code == 200
+        assert user_b.get(f"/api/v1/conversations/{conversation_b['id']}").status_code == 200
+        assert user_b.get(f"/api/v1/attachments/{attachment_b['id']}").status_code == 200
     app.dependency_overrides.clear()
 
 
@@ -45,4 +78,3 @@ def test_conversation_crud(client):
     assert client.get(f"/api/v1/conversations/{conversation_id}").status_code == 200
     assert client.delete(f"/api/v1/conversations/{conversation_id}", headers={"X-CSRF-Token": csrf}).status_code == 204
     assert client.get(f"/api/v1/conversations/{conversation_id}").status_code == 404
-

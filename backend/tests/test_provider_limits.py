@@ -54,6 +54,14 @@ def test_provider_disables_reasoning_for_nemotron_3():
     assert payload["chat_template_kwargs"] == {"enable_thinking": False}
 
 
+def test_provider_uses_recommended_ministral_sampling_defaults():
+    settings = get_settings().model_copy(update={"ai_model": "mistralai/ministral-14b-instruct-2512"})
+    provider = NvidiaNimProvider(settings)
+    payload = provider._chat_payload([{"role": "user", "content": "hello"}], stream=False)
+    assert payload["temperature"] == 0.15
+    assert payload["top_p"] == 1.0
+
+
 @pytest.mark.asyncio
 async def test_stream_retries_fallback_before_first_token(monkeypatch):
     settings = get_settings().model_copy(
