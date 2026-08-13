@@ -121,6 +121,8 @@ class Settings(BaseSettings):
 
     @property
     def allowed_origins(self) -> list[str]:
+        if self.is_production:
+            return [self.app_origin.rstrip("/")]
         origins = {
             self.app_origin.rstrip("/"),
             "http://localhost:5173",

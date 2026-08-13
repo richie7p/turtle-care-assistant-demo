@@ -1,4 +1,6 @@
 from io import BytesIO
+import struct
+import zlib
 
 from PIL import Image
 
@@ -13,6 +15,13 @@ def make_png() -> bytes:
     return output.getvalue()
 
 
+def make_oversized_png_header() -> bytes:
+    data = bytearray(make_png())
+    data[16:24] = struct.pack(">II", 10_000, 5_000)
+    data[29:33] = struct.pack(">I", zlib.crc32(data[12:29]) & 0xFFFFFFFF)
+    return bytes(data)
+
+
 def test_upload_validation_and_private_access(client):
     csrf = register(client)
     invalid = client.post(
@@ -21,6 +30,12 @@ def test_upload_validation_and_private_access(client):
         headers={"X-CSRF-Token": csrf},
     )
     assert invalid.status_code == 422
+    oversized = client.post(
+        "/api/v1/attachments",
+        files={"file": ("oversized.png", make_oversized_png_header(), "image/png")},
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert oversized.status_code == 413
     valid = client.post(
         "/api/v1/attachments",
         files={"file": ("habitat.png", make_png(), "image/png")},

@@ -165,7 +165,7 @@ APP_HOST=0.0.0.0 APP_PORT=8000 bash scripts/start.sh
 
 On Windows Server, use: `$env:APP_HOST='0.0.0.0'; $env:APP_PORT='8000'; .\start.cmd`.
 
-The reverse proxy must provide HTTPS, and `APP_ORIGIN` must exactly match the origin used by the browser. Persist and back up `backend/data/` and `backend/uploads/`. SQLite is suitable for a single-machine demo; a multi-instance deployment first needs a PostgreSQL driver, validated migrations, shared rate limiting, and staging integration tests. See the [platform README](https://github.com/richie7p/nvidia-nim-rag-platform#server-deployment) for the full boundary.
+The reverse proxy must provide HTTPS, and `APP_ORIGIN` must exactly match the origin used by the browser. Persist and back up `backend/data/` and `backend/uploads/`. SQLite is suitable for a single-machine demo; a multi-instance deployment first needs a PostgreSQL driver, validated migrations, shared rate limiting, and staging integration tests. See the [platform README](https://github.com/richie7p/nvidia-nim-rag-platform/blob/main/README.en.md#server-deployment) for the full boundary.
 
 ## Tests
 

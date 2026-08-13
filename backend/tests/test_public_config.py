@@ -31,3 +31,5 @@ def test_production_accepts_real_https_origin_and_long_secret():
         session_secret="a-unique-production-secret-with-more-than-32-characters",
     )
     assert settings.is_production is True
+    assert settings.allowed_origins == ["https://assistant.acme.test"]
+    assert "http://localhost:8000" not in settings.allowed_origins
