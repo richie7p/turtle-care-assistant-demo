@@ -126,6 +126,9 @@ class Message(Base):
     status: Mapped[str] = mapped_column(String(20), default="complete")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
+    # Immutable source metadata survives replacement of indexed chunks.
+    citation_snapshots: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
     attachments: Mapped[list[Attachment]] = relationship(back_populates="message")
     citations: Mapped[list[MessageCitation]] = relationship(back_populates="message", cascade="all, delete-orphan")

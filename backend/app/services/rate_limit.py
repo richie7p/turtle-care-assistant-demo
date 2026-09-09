@@ -29,11 +29,14 @@ class AIRateLimiter:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="上一個 AI 回應仍在進行中。")
             recent.append(now)
             self._active[user_id] += 1
-        await self._global.acquire()
+        acquired = False
         try:
+            await self._global.acquire()
+            acquired = True
             yield
         finally:
-            self._global.release()
+            if acquired:
+                self._global.release()
             async with self._lock:
                 self._active[user_id] = max(0, self._active[user_id] - 1)
 

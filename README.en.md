@@ -202,3 +202,9 @@ Automated tests use an internal fake provider. They validate application behavio
 ## License
 
 MIT
+
+## Upgrading an existing installation
+
+Stop the service and back up the database and uploads before updating. After updating the code, run `python -m alembic upgrade head` from `backend/` using the project virtual environment, then restart the service. Run the migration before synchronizing knowledge.
+
+This migration snapshots existing answer citations so their original title, source and section survive knowledge updates. Citations deleted before this upgrade cannot be recovered by the migration.
