@@ -42,19 +42,22 @@ def message_response(message: Message) -> MessageResponse:
         AttachmentResponse.model_validate(item).model_copy(update={"url": f"/api/v1/attachments/{item.id}"})
         for item in message.attachments
     ]
-    citations = [
-        CitationResponse(
-            document_id=item.document_id,
-            chunk_id=item.chunk_id,
-            title=item.document.title,
-            source_name=item.document.source_name,
-            source_url=item.document.source_url,
-            section=item.chunk.section,
-            rank=item.rank,
-            score=item.score,
-        )
-        for item in sorted(message.citations, key=lambda citation: citation.rank)
-    ]
+    if message.citation_snapshots is not None:
+        citations = [CitationResponse.model_validate(item) for item in message.citation_snapshots]
+    else:
+        citations = [
+            CitationResponse(
+                document_id=item.document_id,
+                chunk_id=item.chunk_id,
+                title=item.document.title,
+                source_name=item.document.source_name,
+                source_url=item.document.source_url,
+                section=item.chunk.section,
+                rank=item.rank,
+                score=item.score,
+            )
+            for item in sorted(message.citations, key=lambda citation: citation.rank)
+        ]
     return MessageResponse(
         id=message.id,
         user_id=message.user_id,

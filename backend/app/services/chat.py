@@ -227,42 +227,56 @@ async def update_summary_if_needed(
             Message.status == "complete",
         )
     ) or 0
-    if count < settings.summary_trigger_messages or count - conversation.summarized_message_count < 8:
+    eligible_count = max(0, count - settings.context_recent_messages)
+    cursor = conversation.summarized_message_count
+    if count < settings.summary_trigger_messages or eligible_count - cursor < 8:
         return
     messages = list(
         db.scalars(
             select(Message)
             .where(Message.conversation_id == conversation.id, Message.user_id == user_id, Message.status == "complete")
-            .order_by(Message.created_at)
+            .order_by(Message.created_at, Message.id)
         )
     )
-    transcript = "\n".join(f"{m.role}: {m.content}" for m in messages[:-settings.context_recent_messages])
-    if not transcript:
-        return
-    request_id = f"summary-{uuid.uuid4()}"
-    try:
-        result = await provider.generate(
-            [
-                {"role": "system", "content": "整理對話摘要，保留使用者提供的背景資料、已給建議、未解問題與重要數值，300字內。"},
-                {"role": "user", "content": f"舊摘要：{conversation.summary or '無'}\n\n新對話：\n{transcript[:16000]}"},
-            ],
-            max_tokens=400,
-        )
-        conversation.summary = result.content.strip()
-        conversation.summarized_message_count = max(0, count - settings.context_recent_messages)
-        save_usage(
-            db,
-            settings,
-            request_id=request_id,
-            user_id=user_id,
-            feature="summary",
-            model=settings.ai_model,
-            usage=result.usage,
-            latency_ms=result.latency_ms,
-        )
-        db.commit()
-    except ProviderError:
-        db.rollback()
+
+    # Summarize only unseen messages, in complete-message batches. Commit each
+    # successful batch so a later provider error cannot advance past lost text.
+    while cursor < eligible_count:
+        lines: list[str] = []
+        chars = 0
+        end = cursor
+        while end < eligible_count:
+            message = messages[end]
+            line = f"{message.role}: {message.content}"
+            if lines and chars + len(line) + 1 > 16000:
+                break
+            lines.append(line)
+            chars += len(line) + 1
+            end += 1
+        transcript = "\n".join(lines)
+        request_id = f"summary-{uuid.uuid4()}"
+        try:
+            result = await provider.generate(
+                [
+                    {"role": "system", "content": "整理對話摘要，保留使用者提供的背景資料、已給建議、未解問題與重要數值，300字內。"},
+                    {"role": "user", "content": f"舊摘要：{conversation.summary or '無'}\n\n新對話：\n{transcript}"},
+                ],
+                max_tokens=400,
+            )
+            if not result.content.strip():
+                return
+            conversation.summary = result.content.strip()
+            conversation.summarized_message_count = end
+            save_usage(
+                db, settings, request_id=request_id, user_id=user_id,
+                feature="summary", model=settings.ai_model, usage=result.usage,
+                latency_ms=result.latency_ms,
+            )
+            db.commit()
+            cursor = end
+        except ProviderError:
+            db.rollback()
+            return
 
 
 async def stream_chat_response(
@@ -354,6 +368,7 @@ async def stream_chat_response(
                 raise ProviderError("empty_response", "AI 沒有產生內容，請再試一次。", 503)
             assistant_message.content = final_content
             assistant_message.status = "complete"
+            assistant_message.citation_snapshots = citations
             for item in rag_results:
                 db.add(
                     MessageCitation(

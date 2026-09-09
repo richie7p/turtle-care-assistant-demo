@@ -202,3 +202,9 @@ npm.cmd run test:e2e
 ## License
 
 MIT
+
+## 升級既有安裝
+
+更新本版本前，先停止服務並備份資料庫與 uploads。更新程式後，在 `backend/` 執行 `python -m alembic upgrade head`（請使用專案虛擬環境的 Python），完成後再啟動服務。請先執行 migration，再同步知識庫。
+
+本次 migration 會將現存回答的引用轉成來源快照，保留當時的標題、來源與章節，避免知識文件更新後引用消失。升級前已被刪除的引用無法由這次 migration 復原。

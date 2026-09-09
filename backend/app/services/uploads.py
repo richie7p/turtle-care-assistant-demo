@@ -59,7 +59,7 @@ async def save_image_upload(
         image = background
 
     output = io.BytesIO()
-    save_format = "JPEG" if media_type == "image/jpeg" else image.format
+    save_format = {"image/jpeg": "JPEG", "image/png": "PNG", "image/webp": "WEBP"}[media_type]
     save_options = {"quality": 88, "optimize": True} if save_format in ("JPEG", "WEBP") else {"optimize": True}
     image.save(output, format=save_format, **save_options)
     sanitized = output.getvalue()
