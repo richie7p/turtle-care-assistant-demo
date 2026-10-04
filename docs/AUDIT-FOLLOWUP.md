@@ -75,3 +75,7 @@ Python 測試仍有 Starlette 對 httpx TestClient 及舊 status 常數的棄用
 ## 授權真實 API 後續測試
 
 已補上 [NVIDIA 真實測試紀錄](LIVE-NVIDIA-TEST.md) 與可手動重跑的工具。詳列首次失敗、修正、最後一輪結果及驗證限制；不得由小樣本通過推論醫療或飼養正確率。
+
+## Content and function acceptance update
+
+See [the 2026-10-04 acceptance record](CONTENT-FUNCTION-ACCEPTANCE.md) for the additional content review, fixes, regression cases and limits. Earlier counts above describe the audit baseline.
