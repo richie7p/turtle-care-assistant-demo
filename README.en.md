@@ -28,7 +28,7 @@ Every installation must use its own NVIDIA NIM API key. This repository contains
 - Your own NVIDIA NIM API key
 - Network access to `https://integrate.api.nvidia.com`
 
-Sign in on [NVIDIA Build](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512) and select **Generate API Key**. Hosted NIM runs in NVIDIA's cloud, so the demo does not require an NVIDIA GPU or a local model download. NVIDIA's hosted trial endpoints may have quota and traffic limits; check the current NVIDIA terms for your use case.
+Sign in on [NVIDIA Build](https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b) and select **Generate API Key**. Hosted NIM runs in NVIDIA's cloud, so the demo does not require an NVIDIA GPU or a local model download. NVIDIA's hosted trial endpoints may have quota and traffic limits; check the current NVIDIA terms for your use case.
 
 ## Quick start on Windows
 
@@ -140,12 +140,12 @@ The 12 bundled documents demonstrate chunking, embeddings, retrieval, and citati
 
 ## Default NVIDIA models
 
-- Chat: [`mistralai/ministral-14b-instruct-2512`](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512)
-- Fallback: [`mistralai/mistral-nemotron`](https://build.nvidia.com/mistralai/mistral-nemotron)
-- Vision: [`mistralai/ministral-14b-instruct-2512`](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512)
-- Embeddings: [`nvidia/llama-nemotron-embed-1b-v2`](https://build.nvidia.com/nvidia/llama-nemotron-embed-1b-v2/modelcard)
+- Chat: [`nvidia/nemotron-3.5-lightning-30b-a3b`](https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b)
+- Fallback: [`nvidia/nemotron-3-super-120b-a12b`](https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b)
+- Vision: [`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`](https://build.nvidia.com/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning)
+- Embeddings: [`nvidia/llama-nemotron-embed-vl-1b-v2`](https://build.nvidia.com/nvidia/llama-nemotron-embed-vl-1b-v2/modelcard)
 
-The default Ministral model accepts text and images, and its NVIDIA model information lists Chinese among the supported languages. The embedding model is documented for multilingual and cross-lingual retrieval, including Chinese. Hosted model availability can change, and every identifier is configurable in `.env`. Before presenting the demo, run text, image, and embedding smoke tests with your own private key and representative turtle images.
+Separate NVIDIA models handle text, vision, and embeddings. The synthetic Traditional Chinese workflows passed on 2026-10-04; see the live-test record for scope and initial failures. These checks do not establish domain accuracy. Hosted availability can change, and all identifiers remain configurable in `.env`. Update existing `.env` model values and rerun `python -m app.cli sync-knowledge` to rebuild vectors. Validate text, images, and retrieval quality using representative data before deployment.
 
 ## Server deployment
 
@@ -217,3 +217,5 @@ MIT
 Stop the service and back up the database and uploads before updating. After updating the code, run `python -m alembic upgrade head` from `backend/` using the project virtual environment, then restart the service. Run the migration before synchronizing knowledge.
 
 This migration snapshots existing answer citations so their original title, source and section survive knowledge updates. Citations deleted before this upgrade cannot be recovered by the migration.
+
+See the [live NVIDIA smoke-test record](docs/LIVE-NVIDIA-TEST.md) for opt-in commands, initial failures, final results, and limitations.

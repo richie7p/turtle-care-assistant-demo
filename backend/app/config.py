@@ -41,10 +41,10 @@ class Settings(BaseSettings):
     ai_provider: str = "nvidia-nim"
     ai_api_key: str = ""
     ai_base_url: str = "https://integrate.api.nvidia.com/v1"
-    ai_model: str = "mistralai/ministral-14b-instruct-2512"
-    ai_fallback_model: str | None = "mistralai/mistral-nemotron"
-    ai_vision_model: str = "mistralai/ministral-14b-instruct-2512"
-    ai_embedding_model: str = "nvidia/llama-nemotron-embed-1b-v2"
+    ai_model: str = "nvidia/nemotron-3.5-lightning-30b-a3b"
+    ai_fallback_model: str | None = "nvidia/nemotron-3-super-120b-a12b"
+    ai_vision_model: str = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+    ai_embedding_model: str = "nvidia/llama-nemotron-embed-vl-1b-v2"
     ai_timeout_seconds: int = 45
     ai_max_output_tokens: int = 1200
     ai_input_cost_per_million: float | None = None

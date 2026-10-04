@@ -219,22 +219,38 @@ class NvidiaNimProvider(ModelProvider):
             and fallback_model != primary_model
         ):
             models.append(fallback_model)
+        else:
+            # A hosted vision endpoint may complete without any answer tokens.
+            # Retry once before exposing content, retaining the image-capable model.
+            models.append(primary_model)
 
-        retriable_codes = {"model_unavailable", "provider_timeout", "provider_unavailable"}
+        retriable_codes = {"model_unavailable", "provider_timeout", "provider_unavailable", "empty_response"}
         last_error: ProviderError | None = None
         for index, model in enumerate(models):
             emitted_token = False
+            leading_whitespace = ""
             yield StreamEvent(kind="model", content=model)
             try:
                 async for event in self._stream_with_model(messages, model=model, max_tokens=max_tokens):
                     if event.kind == "token" and event.content:
+                        if not emitted_token and not event.content.strip():
+                            leading_whitespace += event.content
+                            continue
+                        if leading_whitespace:
+                            event = StreamEvent(kind="token", content=leading_whitespace + event.content)
+                            leading_whitespace = ""
                         emitted_token = True
                     yield event
+                if not emitted_token:
+                    raise ProviderError("empty_response", "AI 沒有產生內容，請再試一次。", 503)
                 yield StreamEvent(kind="done")
                 return
             except ProviderError as exc:
                 last_error = exc
-                can_retry = not emitted_token and index + 1 < len(models) and exc.code in retriable_codes
+                can_retry = (
+                    not emitted_token and index + 1 < len(models) and exc.code in retriable_codes
+                    and (models[index + 1] != model or exc.code == "empty_response")
+                )
                 if not can_retry:
                     raise
         if last_error:
