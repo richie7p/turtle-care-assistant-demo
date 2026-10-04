@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import time
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any, Literal
+from urllib.parse import quote
 
 import httpx
 
@@ -120,18 +122,21 @@ class NvidiaNimProvider(ModelProvider):
         if status == 429:
             return ProviderError("provider_rate_limited", "NVIDIA API 目前請求較多，請稍後再試。", 429)
         if status in (404, 410):
-            return ProviderError("model_unavailable", "設定的 NVIDIA 模型已停止服務，請更新模型設定。", 503)
+            return ProviderError("model_unavailable", "設定的 NVIDIA 模型目前無法使用，請檢查模型設定與帳戶權限。", 503)
         if status in (408, 504):
             return ProviderError("provider_timeout", "AI 回應逾時，請稍後再試。", 504)
         return ProviderError("provider_unavailable", "NVIDIA AI 服務暫時無法使用，請稍後再試。", 503)
 
     @staticmethod
     def _usage(data: dict[str, Any] | None) -> Usage:
-        if not data:
+        if not isinstance(data, dict):
             return Usage()
+        def count(primary: str, alternate: str) -> int | None:
+            value = data.get(primary, data.get(alternate))
+            return value if type(value) is int and value >= 0 else None
         return Usage(
-            input_tokens=data.get("prompt_tokens") or data.get("input_tokens"),
-            output_tokens=data.get("completion_tokens") or data.get("output_tokens"),
+            input_tokens=count("prompt_tokens", "input_tokens"),
+            output_tokens=count("completion_tokens", "output_tokens"),
         )
 
     async def _generate_with_model(
@@ -152,7 +157,11 @@ class NvidiaNimProvider(ModelProvider):
             if response.is_error:
                 raise self._map_error(response)
             data = response.json()
-            content = data["choices"][0]["message"].get("content") or ""
+            content = data["choices"][0]["message"]["content"]
+            if not isinstance(content, str):
+                raise ValueError("Invalid response content")
+            if not content.strip():
+                raise ProviderError("empty_response", "AI 沒有產生內容，請再試一次。", 503)
             return ProviderResult(
                 content=content,
                 usage=self._usage(data.get("usage")),
@@ -163,7 +172,7 @@ class NvidiaNimProvider(ModelProvider):
             raise
         except httpx.TimeoutException as exc:
             raise ProviderError("provider_timeout", "AI 回應逾時，請稍後再試。", 504) from exc
-        except (httpx.HTTPError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
             raise ProviderError("provider_unavailable", "NVIDIA AI 服務回應異常，請稍後再試。", 503) from exc
 
     async def generate(self, messages: list[dict[str, Any]], *, max_tokens: int | None = None) -> ProviderResult:
@@ -173,6 +182,7 @@ class NvidiaNimProvider(ModelProvider):
         self, messages: list[dict[str, Any]], *, model: str, max_tokens: int | None = None
     ) -> AsyncIterator[StreamEvent]:
         try:
+            completed = False
             timeout = httpx.Timeout(self.settings.ai_timeout_seconds, read=self.settings.ai_timeout_seconds)
             async with httpx.AsyncClient(timeout=timeout) as client:
                 async with client.stream(
@@ -188,24 +198,39 @@ class NvidiaNimProvider(ModelProvider):
                         if not line.startswith("data:"):
                             continue
                         raw = line[5:].strip()
-                        if not raw or raw == "[DONE]":
+                        if raw == "[DONE]":
+                            completed = True
+                            break
+                        if not raw:
                             continue
-                        try:
-                            data = json.loads(raw)
-                        except json.JSONDecodeError:
-                            continue
+                        data = json.loads(raw)
+                        if not isinstance(data, dict):
+                            raise ValueError("Invalid stream event")
                         if data.get("usage"):
                             yield StreamEvent(kind="usage", usage=self._usage(data["usage"]))
                         for choice in data.get("choices", []):
                             delta = choice.get("delta", {}).get("content")
+                            if delta is not None and not isinstance(delta, str):
+                                raise ValueError("Invalid stream content")
                             if delta:
                                 yield StreamEvent(kind="token", content=delta)
+                            finish = choice.get("finish_reason")
+                            if finish == "length":
+                                raise ProviderError("response_truncated", "回答達到長度限制，已保留收到的內容；請縮小問題範圍後再試。", 503)
+                            if finish == "content_filter":
+                                raise ProviderError("response_filtered", "模型無法完成這個請求，請調整問題後再試。", 422)
+                            if finish == "stop":
+                                completed = True
+                    if not completed:
+                        raise ProviderError("provider_interrupted", "AI 連線在回答完成前中斷，已保留收到的內容，請稍後再試。", 503)
         except ProviderError:
             raise
         except httpx.TimeoutException as exc:
             raise ProviderError("provider_timeout", "AI 回應逾時，請稍後再試。", 504) from exc
         except httpx.HTTPError as exc:
             raise ProviderError("provider_unavailable", "NVIDIA AI 服務暫時無法使用，請稍後再試。", 503) from exc
+        except (AttributeError, KeyError, IndexError, TypeError, ValueError) as exc:
+            raise ProviderError("provider_unavailable", "NVIDIA AI 服務回應異常，請稍後再試。", 503) from exc
 
     async def stream_generate(
         self, messages: list[dict[str, Any]], *, max_tokens: int | None = None
@@ -224,7 +249,7 @@ class NvidiaNimProvider(ModelProvider):
             # Retry once before exposing content, retaining the image-capable model.
             models.append(primary_model)
 
-        retriable_codes = {"model_unavailable", "provider_timeout", "provider_unavailable", "empty_response"}
+        retriable_codes = {"model_unavailable", "provider_timeout", "provider_unavailable", "provider_interrupted", "empty_response"}
         last_error: ProviderError | None = None
         for index, model in enumerate(models):
             emitted_token = False
@@ -280,24 +305,45 @@ class NvidiaNimProvider(ModelProvider):
                 )
                 if response.status_code == 202:
                     request_id = response.json().get("requestId")
+                    if not isinstance(request_id, str) or not request_id:
+                        raise ValueError("Missing embedding request ID")
                     for _ in range(30):
                         await asyncio.sleep(0.5)
                         response = await client.get(
-                            f"{self.settings.ai_base_url.rstrip('/')}/status/{request_id}",
+                            f"{self.settings.ai_base_url.rstrip('/')}/status/{quote(request_id, safe='')}",
                             headers=self._headers(),
                         )
                         if response.status_code != 202:
                             break
+                    if response.status_code == 202:
+                        raise ProviderError("provider_timeout", "知識庫向量服務尚未完成，請稍後再試。", 504)
             if response.is_error:
                 raise self._map_error(response)
             data = response.json().get("data", [])
-            data.sort(key=lambda item: item.get("index", 0))
-            return [item["embedding"] for item in data]
+            if not isinstance(data, list) or len(data) != len(texts):
+                raise ValueError("Invalid embedding count")
+            indexes = [item["index"] for item in data]
+            if any(type(index) is not int for index in indexes) or sorted(indexes) != list(range(len(texts))):
+                raise ValueError("Invalid embedding indexes")
+            data.sort(key=lambda item: item["index"])
+            vectors = [item["embedding"] for item in data]
+            dimension = None
+            for vector in vectors:
+                if not isinstance(vector, list) or not vector:
+                    raise ValueError("Empty embedding")
+                if any(type(value) not in (int, float) or not math.isfinite(value) for value in vector):
+                    raise ValueError("Invalid embedding values")
+                if not any(value != 0 for value in vector):
+                    raise ValueError("Zero embedding")
+                if dimension is not None and len(vector) != dimension:
+                    raise ValueError("Inconsistent embedding dimensions")
+                dimension = len(vector)
+            return vectors
         except ProviderError:
             raise
         except httpx.TimeoutException as exc:
             raise ProviderError("provider_timeout", "知識庫向量服務逾時，請稍後再試。", 504) from exc
-        except (httpx.HTTPError, KeyError, ValueError) as exc:
+        except (httpx.HTTPError, AttributeError, KeyError, IndexError, TypeError, ValueError, OverflowError) as exc:
             raise ProviderError("provider_unavailable", "知識庫向量服務暫時無法使用。", 503) from exc
 
 
