@@ -188,7 +188,7 @@ async def update_title_if_needed(
             ],
             max_tokens=40,
         )
-        title = result.content.strip().strip('"「」')[:40]
+        title = clean_generated_title(result.content)
         conversation.title = title or fallback
         save_usage(
             db,
@@ -215,6 +215,15 @@ async def update_title_if_needed(
             error_code=exc.code,
         )
     db.commit()
+
+
+def clean_generated_title(content: str) -> str:
+    # Hosted models sometimes append prose or fenced code despite the title
+    # prompt. Persist only the first title line; never expose a code fence.
+    first_line = next((line.strip() for line in content.splitlines() if line.strip()), "")
+    if first_line.startswith("```"):
+        return ""
+    return first_line.lstrip("# ").strip('"「」“”')[:18]
 
 
 async def update_summary_if_needed(

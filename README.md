@@ -26,9 +26,9 @@
 
 - Git
 - Python 3.11（請確認 `python --version`）
-- Node.js 22 以上（建議使用目前的 LTS 版）
+- Node.js 22.22.2 以上的 22.x LTS（也支援 24.15.0 以上的 24.x 與 26 以上）
 - 可連線至 `https://integrate.api.nvidia.com`
-- 自己的 NVIDIA NIM API Key；前往 [NVIDIA Build](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512) 登入並選擇 **Generate API Key**
+- 自己的 NVIDIA NIM API Key；前往 [NVIDIA Build](https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b) 登入並選擇 **Generate API Key**
 
 Hosted NIM 由 NVIDIA 雲端執行，安裝本專案不需要 NVIDIA GPU 或本機模型。NVIDIA 免費端點可能有額度與流量限制，實際條款以 NVIDIA 頁面為準。
 
@@ -142,12 +142,12 @@ Set-Location backend
 
 ## NVIDIA 模型與中文 Vision 注意事項
 
-- Chat：[`mistralai/ministral-14b-instruct-2512`](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512)
-- Fallback：[`mistralai/mistral-nemotron`](https://build.nvidia.com/mistralai/mistral-nemotron)
-- Vision：[`mistralai/ministral-14b-instruct-2512`](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512)
-- Embedding：[`nvidia/llama-nemotron-embed-1b-v2`](https://build.nvidia.com/nvidia/llama-nemotron-embed-1b-v2/modelcard)
+- Chat：[`nvidia/nemotron-3.5-lightning-30b-a3b`](https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b)
+- Fallback：[`nvidia/nemotron-3-super-120b-a12b`](https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b)
+- Vision：[`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`](https://build.nvidia.com/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning)
+- Embedding：[`nvidia/llama-nemotron-embed-vl-1b-v2`](https://build.nvidia.com/nvidia/llama-nemotron-embed-vl-1b-v2/modelcard)
 
-預設 Ministral 同時支援文字與圖片；NVIDIA 的模型資料列出中文為支援語言，Embedding 模型也列出中文與跨語言檢索能力。Hosted 模型供應狀態可能改變，所有型號都能在 `.env` 更換。正式展示前仍必須使用自己的私人 Key 與實際烏龜照片完成文字、圖片及 Embedding Smoke Test。
+預設文字與圖片使用各自的 NVIDIA 模型，並以獨立 Embedding 模型建立檢索向量。2026-10-04 的合成繁體中文流程測試通過，範圍與首次失敗詳見測試紀錄；不代表領域準確率。Hosted 模型供應狀態可能改變，所有型號都可在 `.env` 更換。既有 `.env` 請同步更新上述型號，並重跑 `python -m app.cli sync-knowledge` 重建向量。正式使用前仍需以實際資料驗證文字、圖片及 Embedding 品質。
 
 ## 在伺服器部署
 
@@ -175,12 +175,21 @@ Windows Server 可改用：`$env:APP_HOST='0.0.0.0'; $env:APP_PORT='8000'; .\sta
 Set-Location backend
 ..\.venv\Scripts\python.exe -m pytest -q
 Set-Location ..\frontend
+npm.cmd run typecheck
 npm.cmd test
 npm.cmd run build
+npx.cmd playwright install chromium
 npm.cmd run test:e2e
+npm.cmd audit --audit-level=moderate
 ```
 
 測試使用 Fake Provider，不會讀取真實 NVIDIA Key。GitHub Actions 會在 `windows-latest`、`ubuntu-latest` 與 `macos-latest` 執行相同測試；macOS/Linux 可把 Python 路徑換成 `../.venv/bin/python`，把 `npm.cmd` 換成 `npm`。
+
+瀏覽器測試使用專案管理的 Chromium，首次執行前須先安裝。測試設定會自動選擇 Windows、macOS 或 Linux 的 `.venv` Python 路徑；使用其他環境時可設定 `E2E_PYTHON`。E2E 會清空伺服器的 `AI_API_KEY`，只驗證註冊、介面與 Profile 流程；AI/RAG 行為由後端 Fake Provider 測試，真實模型須另外驗證。
+
+## 修復紀錄與後續工作
+
+依賴修補、測試範圍及待驗證項目集中在 [技術稽核修復紀錄](docs/AUDIT-FOLLOWUP.md)。CI 包含依賴掃描、型別檢查、單元測試、建置與桌機／手機流程測試。
 
 ## 常見問題
 
@@ -208,3 +217,5 @@ MIT
 更新本版本前，先停止服務並備份資料庫與 uploads。更新程式後，在 `backend/` 執行 `python -m alembic upgrade head`（請使用專案虛擬環境的 Python），完成後再啟動服務。請先執行 migration，再同步知識庫。
 
 本次 migration 會將現存回答的引用轉成來源快照，保留當時的標題、來源與章節，避免知識文件更新後引用消失。升級前已被刪除的引用無法由這次 migration 復原。
+
+真實 NVIDIA 連線與合成流程測試、重跑方式及限制見 [測試紀錄](docs/LIVE-NVIDIA-TEST.md)。

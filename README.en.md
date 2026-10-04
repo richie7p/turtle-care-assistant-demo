@@ -24,11 +24,11 @@ Every installation must use its own NVIDIA NIM API key. This repository contains
 
 - Git
 - Python 3.11
-- Node.js 22 or newer; the current LTS release is recommended
+- Node.js 22.22.2 or newer in the 22.x LTS line (also supports 24.15.0+ in the 24.x line, or 26+)
 - Your own NVIDIA NIM API key
 - Network access to `https://integrate.api.nvidia.com`
 
-Sign in on [NVIDIA Build](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512) and select **Generate API Key**. Hosted NIM runs in NVIDIA's cloud, so the demo does not require an NVIDIA GPU or a local model download. NVIDIA's hosted trial endpoints may have quota and traffic limits; check the current NVIDIA terms for your use case.
+Sign in on [NVIDIA Build](https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b) and select **Generate API Key**. Hosted NIM runs in NVIDIA's cloud, so the demo does not require an NVIDIA GPU or a local model download. NVIDIA's hosted trial endpoints may have quota and traffic limits; check the current NVIDIA terms for your use case.
 
 ## Quick start on Windows
 
@@ -140,12 +140,12 @@ The 12 bundled documents demonstrate chunking, embeddings, retrieval, and citati
 
 ## Default NVIDIA models
 
-- Chat: [`mistralai/ministral-14b-instruct-2512`](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512)
-- Fallback: [`mistralai/mistral-nemotron`](https://build.nvidia.com/mistralai/mistral-nemotron)
-- Vision: [`mistralai/ministral-14b-instruct-2512`](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512)
-- Embeddings: [`nvidia/llama-nemotron-embed-1b-v2`](https://build.nvidia.com/nvidia/llama-nemotron-embed-1b-v2/modelcard)
+- Chat: [`nvidia/nemotron-3.5-lightning-30b-a3b`](https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b)
+- Fallback: [`nvidia/nemotron-3-super-120b-a12b`](https://build.nvidia.com/nvidia/nemotron-3-super-120b-a12b)
+- Vision: [`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`](https://build.nvidia.com/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning)
+- Embeddings: [`nvidia/llama-nemotron-embed-vl-1b-v2`](https://build.nvidia.com/nvidia/llama-nemotron-embed-vl-1b-v2/modelcard)
 
-The default Ministral model accepts text and images, and its NVIDIA model information lists Chinese among the supported languages. The embedding model is documented for multilingual and cross-lingual retrieval, including Chinese. Hosted model availability can change, and every identifier is configurable in `.env`. Before presenting the demo, run text, image, and embedding smoke tests with your own private key and representative turtle images.
+Separate NVIDIA models handle text, vision, and embeddings. The synthetic Traditional Chinese workflows passed on 2026-10-04; see the live-test record for scope and initial failures. These checks do not establish domain accuracy. Hosted availability can change, and all identifiers remain configurable in `.env`. Update existing `.env` model values and rerun `python -m app.cli sync-knowledge` to rebuild vectors. Validate text, images, and retrieval quality using representative data before deployment.
 
 ## Server deployment
 
@@ -173,12 +173,21 @@ The reverse proxy must provide HTTPS, and `APP_ORIGIN` must exactly match the or
 Set-Location backend
 ..\.venv\Scripts\python.exe -m pytest -q
 Set-Location ..\frontend
+npm.cmd run typecheck
 npm.cmd test
 npm.cmd run build
+npx.cmd playwright install chromium
 npm.cmd run test:e2e
+npm.cmd audit --audit-level=moderate
 ```
 
 Automated tests use an internal fake provider. They validate application behavior without exposing a real API key. GitHub Actions runs the suite on `windows-latest`, `ubuntu-latest`, and `macos-latest`. On macOS or Linux, replace the Windows Python path with `../.venv/bin/python` and `npm.cmd` with `npm`. Live NVIDIA NIM connectivity must be smoke-tested separately with a private key.
+
+The browser suite uses Playwright-managed Chromium; install it before the first run. The configuration selects the virtual-environment Python path for Windows, macOS or Linux automatically; use `E2E_PYTHON` for another environment. Browser tests clear the server's `AI_API_KEY` and cover registration, navigation and Profile workflows. Backend fake-provider tests cover AI/RAG behavior; live model verification is separate.
+
+## Audit follow-up
+
+See the [audit remediation record](docs/AUDIT-FOLLOWUP.md) for dependency fixes, verification scope and outstanding work. CI includes dependency audits, type checks, unit tests, builds and desktop/mobile browser tests.
 
 ## Troubleshooting
 
@@ -208,3 +217,5 @@ MIT
 Stop the service and back up the database and uploads before updating. After updating the code, run `python -m alembic upgrade head` from `backend/` using the project virtual environment, then restart the service. Run the migration before synchronizing knowledge.
 
 This migration snapshots existing answer citations so their original title, source and section survive knowledge updates. Citations deleted before this upgrade cannot be recovered by the migration.
+
+See the [live NVIDIA smoke-test record](docs/LIVE-NVIDIA-TEST.md) for opt-in commands, initial failures, final results, and limitations.

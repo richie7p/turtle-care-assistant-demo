@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     env:
@@ -20,7 +23,9 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: backend/requirements-dev.txt
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
@@ -43,15 +48,40 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
+      - name: Frontend type check
+        working-directory: frontend
+        run: npm run typecheck
+      - name: Frontend dependency audit
+        working-directory: frontend
+        run: npm audit --audit-level=moderate
       - name: Frontend unit tests
         working-directory: frontend
         run: npm test
       - name: Production build
         working-directory: frontend
         run: npm run build
+      - name: Install browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
       - name: Desktop and mobile E2E
         working-directory: frontend
         env:
           E2E_PYTHON: python
           E2E_TURTLE_MODULE: "true"
         run: npm run test:e2e
+      - name: Alternate edition desktop and mobile E2E
+        working-directory: frontend
+        env:
+          E2E_PYTHON: python
+          E2E_TURTLE_MODULE: "false"
+        run: npm run test:e2e
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: python -m pip install pip-audit==2.10.1
+      - run: python -m pip_audit -r backend/requirements-dev.txt

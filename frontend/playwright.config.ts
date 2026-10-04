@@ -1,8 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
+import { resolve } from "node:path";
+import { turtleModule } from "./e2e/settings";
 
-const turtleModule = process.env.E2E_TURTLE_MODULE ?? "true";
 const edition = turtleModule === "true" ? "turtle" : "core";
-const pythonExecutable = process.env.E2E_PYTHON ?? "..\\.venv\\Scripts\\python.exe";
+const pythonExecutable = process.env.E2E_PYTHON ?? resolve(
+  import.meta.dirname, "..", ".venv",
+  ...(process.platform === "win32" ? ["Scripts", "python.exe"] : ["bin", "python"]),
+);
 const e2ePort = process.env.E2E_PORT ?? "8000";
 const baseURL = `http://127.0.0.1:${e2ePort}`;
 
@@ -21,15 +25,16 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"], channel: "chrome" } },
-    { name: "mobile", use: { ...devices["Pixel 7"], channel: "chrome" } },
+    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    { name: "mobile", use: { ...devices["Pixel 7"] } },
   ],
   webServer: {
-    command: `${pythonExecutable} -m uvicorn app.main:app --app-dir ../backend --host 127.0.0.1 --port ${e2ePort}`,
+    command: `"${pythonExecutable}" -m uvicorn app.main:app --app-dir ../backend --host 127.0.0.1 --port ${e2ePort}`,
     url: `${baseURL}/api/health`,
     reuseExistingServer: false,
     timeout: 60_000,
     env: {
+      AI_API_KEY: "",
       DATABASE_URL: `sqlite:///./data/e2e-${edition}.db`,
       UPLOAD_DIR: "./uploads-e2e",
       APP_ORIGIN: baseURL,
