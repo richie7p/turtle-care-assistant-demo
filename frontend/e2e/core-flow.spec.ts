@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { turtleModule } from "./settings";
 
 test("register and open the configured edition", async ({ page }, testInfo) => {
-  const turtleModule = process.env.E2E_TURTLE_MODULE !== "false";
   const email = `keeper-${testInfo.project.name}-${Date.now()}@example.com`;
   await page.goto("/register");
   await page.getByLabel("顯示名稱").fill("測試飼主");
@@ -13,7 +13,7 @@ test("register and open the configured edition", async ({ page }, testInfo) => {
   if (testInfo.project.name === "mobile") {
     await page.getByRole("button", { name: "開啟選單" }).click();
   }
-  if (!turtleModule) {
+  if (turtleModule !== "true") {
     await expect(page.getByRole("link", { name: "組織知識庫" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Profile" })).toHaveCount(0);
     if (testInfo.project.name === "mobile") {

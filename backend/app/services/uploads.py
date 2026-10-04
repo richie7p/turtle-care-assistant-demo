@@ -33,14 +33,14 @@ async def save_image_upload(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="圖片內容為空。")
 
     try:
-        image = Image.open(io.BytesIO(raw))
+        image = Image.open(io.BytesIO(raw), formats=list(ALLOWED_FORMATS))
         if image.width * image.height > 40_000_000:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail="圖片解析度過高。",
             )
         image.verify()
-        image = Image.open(io.BytesIO(raw))
+        image = Image.open(io.BytesIO(raw), formats=list(ALLOWED_FORMATS))
         image.load()
     except HTTPException:
         raise

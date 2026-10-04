@@ -26,7 +26,7 @@
 
 - Git
 - Python 3.11（請確認 `python --version`）
-- Node.js 22 以上（建議使用目前的 LTS 版）
+- Node.js 22.22.2 以上的 22.x LTS（也支援 24.15.0 以上的 24.x 與 26 以上）
 - 可連線至 `https://integrate.api.nvidia.com`
 - 自己的 NVIDIA NIM API Key；前往 [NVIDIA Build](https://build.nvidia.com/mistralai/ministral-14b-instruct-2512) 登入並選擇 **Generate API Key**
 
@@ -175,12 +175,21 @@ Windows Server 可改用：`$env:APP_HOST='0.0.0.0'; $env:APP_PORT='8000'; .\sta
 Set-Location backend
 ..\.venv\Scripts\python.exe -m pytest -q
 Set-Location ..\frontend
+npm.cmd run typecheck
 npm.cmd test
 npm.cmd run build
+npx.cmd playwright install chromium
 npm.cmd run test:e2e
+npm.cmd audit --audit-level=moderate
 ```
 
 測試使用 Fake Provider，不會讀取真實 NVIDIA Key。GitHub Actions 會在 `windows-latest`、`ubuntu-latest` 與 `macos-latest` 執行相同測試；macOS/Linux 可把 Python 路徑換成 `../.venv/bin/python`，把 `npm.cmd` 換成 `npm`。
+
+瀏覽器測試使用專案管理的 Chromium，首次執行前須先安裝。測試設定會自動選擇 Windows、macOS 或 Linux 的 `.venv` Python 路徑；使用其他環境時可設定 `E2E_PYTHON`。E2E 會清空伺服器的 `AI_API_KEY`，只驗證註冊、介面與 Profile 流程；AI/RAG 行為由後端 Fake Provider 測試，真實模型須另外驗證。
+
+## 修復紀錄與後續工作
+
+依賴修補、測試範圍及待驗證項目集中在 [技術稽核修復紀錄](docs/AUDIT-FOLLOWUP.md)。CI 包含依賴掃描、型別檢查、單元測試、建置與桌機／手機流程測試。
 
 ## 常見問題
 

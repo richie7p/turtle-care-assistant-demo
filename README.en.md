@@ -24,7 +24,7 @@ Every installation must use its own NVIDIA NIM API key. This repository contains
 
 - Git
 - Python 3.11
-- Node.js 22 or newer; the current LTS release is recommended
+- Node.js 22.22.2 or newer in the 22.x LTS line (also supports 24.15.0+ in the 24.x line, or 26+)
 - Your own NVIDIA NIM API key
 - Network access to `https://integrate.api.nvidia.com`
 
@@ -173,12 +173,21 @@ The reverse proxy must provide HTTPS, and `APP_ORIGIN` must exactly match the or
 Set-Location backend
 ..\.venv\Scripts\python.exe -m pytest -q
 Set-Location ..\frontend
+npm.cmd run typecheck
 npm.cmd test
 npm.cmd run build
+npx.cmd playwright install chromium
 npm.cmd run test:e2e
+npm.cmd audit --audit-level=moderate
 ```
 
 Automated tests use an internal fake provider. They validate application behavior without exposing a real API key. GitHub Actions runs the suite on `windows-latest`, `ubuntu-latest`, and `macos-latest`. On macOS or Linux, replace the Windows Python path with `../.venv/bin/python` and `npm.cmd` with `npm`. Live NVIDIA NIM connectivity must be smoke-tested separately with a private key.
+
+The browser suite uses Playwright-managed Chromium; install it before the first run. The configuration selects the virtual-environment Python path for Windows, macOS or Linux automatically; use `E2E_PYTHON` for another environment. Browser tests clear the server's `AI_API_KEY` and cover registration, navigation and Profile workflows. Backend fake-provider tests cover AI/RAG behavior; live model verification is separate.
+
+## Audit follow-up
+
+See the [audit remediation record](docs/AUDIT-FOLLOWUP.md) for dependency fixes, verification scope and outstanding work. CI includes dependency audits, type checks, unit tests, builds and desktop/mobile browser tests.
 
 ## Troubleshooting
 
